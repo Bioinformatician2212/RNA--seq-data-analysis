@@ -161,55 +161,154 @@ This repository contains the data, methods, and results from our research, provi
 
 **Results:** VEP provides detailed annotations, including impact on genes and potential phenotypic effects. This enriches the understanding of variant consequences.
 
-### 8. Gene Expression Analysis
+### 8. Gene Expression Analysis:
 
-**Purpose:** Identify differentially expressed genes between conditions to understand ZIKV infection effects.
 
-**Tool Used:** DESeq2.
+## Step 1: Run `featureCounts` - Quantification
 
-**Process:**
-1. **Install DESeq2**:
-   ```R
-   install.packages("BiocManager")
-   BiocManager::install("DESeq2")
-   ```
+In this step, you will use `featureCounts` to count reads mapped to genes from your BAM files. Follow the instructions below:
 
-2. **Generate Read Counts**:
-   ```bash
-   featureCounts -a annotation.gtf -o gene_counts.txt aligned_reads.sorted.bam
-   ```
+### 1.1 Download Annotation File
 
-3. **Run DESeq2**:
-   ```R
-   library(DESeq2)
-   count_data <- read.table("gene_counts.txt", header=TRUE, row.names=1)
-   col_data <- data.frame(condition=factor(c("control", "treatment", "control")))
-   dds <- DESeqDataSetFromMatrix(countData = count_data, colData = col_data, design = ~ condition)
-   dds <- DESeq(dds)
-   res <- results(dds)
-   write.csv(as.data.frame(res), file = "deseq2_results.csv")
-   ```
+First, download the GTF annotation file if you haven't already:
 
-4. **Create Volcano and PCA Plots**:
-   ```R
-   library(ggplot2)
-   res <- read.csv("deseq2_results.csv", row.names=1)
-   ggplot(res, aes(x=log2FoldChange, y=-log10(pvalue))) + geom_point(aes(color=padj < 0.05), alpha=0.5) + scale_color_manual(values=c("black", "red")) + theme_minimal() + labs(x="Log2 Fold Change", y="-Log10 p-value", color="Significant")
-   ggsave("volcano_plot.png")
+```bash
+wget http://ftp.ensembl.org/pub/release-106/gtf/homo_sapiens/Homo_sapiens.GRCh38.106.gtf.gz
+```
 
-   rld <- rlog(dds, blind=FALSE)
-   pcaData <- plotPCA(rld, intgroup = "condition", returnData=TRUE)
-   ggplot(pcaData, aes(PC1, PC2, color=condition)) + geom_point(size=3) + theme_minimal() + labs(x="PC1", y="PC2", color="Condition")
-   ggsave("pca_plot.png")
-   ```
+### 1.2 Run `featureCounts`
 
-5. **Extract Upregulated and Downregulated Genes**:
-   ```R
-   res <- read.csv("deseq2_results.csv", row.names=1)
-   alpha <- 0.05
-   log2fc_threshold <- 1
-   upregulated <- subset(res, padj < alpha & log2FoldChange > log2fc_threshold)
-   downregulated <- subset(res, padj < alpha & log2# RNA--seq-data-analysis
+Run `featureCounts` to quantify reads mapped to genes. Adjust the command below with the correct paths to your BAM files and the desired output directory:
+
+```bash
+featureCounts -p -a Homo_sapiens.GRCh38.106.gtf -o featurecounts/featurecounts6.txt aligned_read.sorted.bam
+```
+
+**Options:**
+- `-p`: Counts only uniquely mapped reads.
+- `-a`: Specifies the annotation file.
+- `-o`: Specifies the output file.
+
+### 1.3 Confirm Completion
+
+After `featureCounts` finishes running, print a confirmation message:
+
+```bash
+echo "featureCounts finished running!"
+```
+
+### 1.4 Measure Execution Time (Optional)
+
+To measure the execution time, you can use the following script:
+
+```bash
+SECONDS=0
+# Run featureCounts command here
+duration=$SECONDS
+echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
+```
+Note:convert the featurecounts.txt file to csv format  and prepare metadata file for differential expression analysis. 
+## DESeq2 Analysis and Visualization
+
+This script performs differential expression analysis using DESeq2 and visualizes the results with volcano and PCA plots.
+
+### Prerequisites
+
+Make sure you have the following R packages installed:
+- `DESeq2`
+- `ggplot2`
+
+### Code
+
+```r
+library(DESeq2)
+library(ggplot2)
+
+# Read the count data and metadata from CSV files
+count_data <- read.csv("C:\\Users\\ASUS\\Desktop\\annu\\assignment\\counts3.csv", header=TRUE, row.names=1)
+meta_data <- read.csv("C:\\Users\\ASUS\\Desktop\\annu\\assignment\\meta3.csv", header=TRUE, row.names=1)
+
+# Check if the sample names match between count_data and meta_data
+if (!all(rownames(meta_data) %in% colnames(count_data))) {
+  stop("Sample names in metadata and count data do not match.")
+}
+
+# Ensure the column names of count_data match the row names of meta_data
+count_data <- count_data[, rownames(meta_data)]
+
+# Check for NA values in the count_data
+if (any(is.na(count_data))) {
+  warning("NA values detected in count data. Replacing NA values with 0.")
+  count_data[is.na(count_data)] <- 0
+}
+
+# Create DESeq2 dataset
+dds <- DESeqDataSetFromMatrix(countData = count_data, colData = meta_data, design = ~ condition)
+
+# Run DESeq2 analysis
+dds <- DESeq(dds)
+
+# Extract results
+res <- results(dds)
+
+# Save DESeq2 results to CSV
+write.csv(as.data.frame(res), file = "deseq2_results.csv")
+
+# Extract upregulated and downregulated genes
+upregulated_genes <- subset(res, log2FoldChange > 0 & padj < 0.05)
+downregulated_genes <- subset(res, log2FoldChange < 0 & padj < 0.05)
+
+# Save upregulated and downregulated genes to CSV files
+write.csv(as.data.frame(upregulated_genes), file = "upregulated_genes.csv")
+write.csv(as.data.frame(downregulated_genes), file = "downregulated_genes.csv")
+
+# Prepare data for volcano plot
+res_df <- as.data.frame(res)
+res_df$logP <- -log10(res_df$pvalue)
+res_df$category <- ifelse(res_df$padj < 0.05 & res_df$log2FoldChange > 0, "Upregulated",
+                          ifelse(res_df$padj < 0.05 & res_df$log2FoldChange < 0, "Downregulated", "Not Significant"))
+
+# Volcano plot with upregulated genes in blue and downregulated in red
+ggplot(res_df, aes(x = log2FoldChange, y = logP, color = category)) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("Not Significant" = "gray", "Upregulated" = "blue", "Downregulated" = "red")) +
+  labs(x = "Log2 Fold Change", y = "-Log10(p-value)", title = "Volcano Plot") +
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = "white", colour = "black"),
+        plot.background = element_rect(fill = "white"),
+        legend.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(colour = "grey80"),
+        panel.grid.minor = element_line(colour = "grey90"))
+
+# Save the volcano plot
+ggsave("volcano_plot.png", width = 8, height = 6)
+
+# Perform variance stabilizing transformation (VST)
+vsd <- vst(dds, blind = FALSE)
+
+# Perform PCA
+pca_data <- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
+
+# Calculate percent variance explained
+percentVar <- attr(pca_data, "percentVar")
+
+# PCA plot
+ggplot(pca_data, aes(x = PC1, y = PC2, color = condition)) +
+  geom_point(size = 3) +
+  labs(x = paste0("PC1: ", round(percentVar[1], 2), "% variance"),
+       y = paste0("PC2: ", round(percentVar[2], 2), "% variance"),
+       title = "PCA Plot") +
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = "white", colour = "black"),
+        plot.background = element_rect(fill = "white"),
+        legend.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(colour = "grey80"),
+        panel.grid.minor = element_line(colour = "grey90"))
+
+# Save the PCA plot
+ggsave("pca_plot.png", width = 8, height = 6)
+
+
 
 ## 9. Protein-Protein Interaction Network Analysis
 
