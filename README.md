@@ -308,7 +308,7 @@ ggplot(pca_data, aes(x = PC1, y = PC2, color = condition)) +
 # Save the PCA plot
 ggsave("pca_plot.png", width = 8, height = 6)
 
-
+```
 
 ## 9. Protein-Protein Interaction Network Analysis
 
