@@ -31,8 +31,8 @@ res <- results(dds)
 write.csv(as.data.frame(res), file = "deseq2_results.csv")
 
 # Extract upregulated and downregulated genes
-upregulated_genes <- subset(res, log2FoldChange > 0 & padj < 0.05)
-downregulated_genes <- subset(res, log2FoldChange < 0 & padj < 0.05)
+upregulated_genes <- subset(res, log2FoldChange > 2 & padj < 0.05)
+downregulated_genes <- subset(res, log2FoldChange < (-2) & padj < 0.05)
 
 # Save upregulated and downregulated genes to CSV files
 write.csv(as.data.frame(upregulated_genes), file = "upregulated_genes.csv")
