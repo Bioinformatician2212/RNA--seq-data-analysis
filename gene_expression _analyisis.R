@@ -41,8 +41,8 @@ write.csv(as.data.frame(downregulated_genes), file = "downregulated_genes.csv")
 # Prepare data for volcano plot
 res_df <- as.data.frame(res)
 res_df$logP <- -log10(res_df$pvalue)
-res_df$category <- ifelse(res_df$padj < 0.05 & res_df$log2FoldChange > 0, "Upregulated",
-                          ifelse(res_df$padj < 0.05 & res_df$log2FoldChange < 0, "Downregulated", "Not Significant"))
+res_df$category <- ifelse(res_df$padj < 0.05 & res_df$log2FoldChange > 2, "Upregulated",
+                          ifelse(res_df$padj < 0.05 & res_df$log2FoldChange < -2, "Downregulated", "Not Significant"))
 
 # Volcano plot with upregulated genes in blue and downregulated in red
 ggplot(res_df, aes(x = log2FoldChange, y = logP, color = category)) +
